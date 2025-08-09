@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "aws-sam",
+            "request": "direct-invoke",
+            "name": "TorneSe.PagamentosPedidos.App:Function",
+            "invokeTarget": {
+                "target": "template",
+                "templatePath": "src/TorneSe.PagamentosPedidos.App/aws-lambda-tools-defaults.json",
+                "logicalId": "Function"
+            },
+            "lambda": {
+                "payload": {},
+                "environmentVariables": {}
+            }
+        }
+    ]
+}

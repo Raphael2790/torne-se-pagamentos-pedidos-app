@@ -1,0 +1,38 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{0C88DD14-F956-CE84-757C-A364CCF449FC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TorneSe.PagamentosPedidos.App", "src\TorneSe.PagamentosPedidos.App\TorneSe.PagamentosPedidos.App.csproj", "{65198DA2-02DA-0492-561C-A48E35904B0D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TorneSe.PagamentosPedidos.App.Tests", "test\TorneSe.PagamentosPedidos.App.Tests\TorneSe.PagamentosPedidos.App.Tests.csproj", "{4A9790AC-79BF-C428-3F11-1E9389F6DEE0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{65198DA2-02DA-0492-561C-A48E35904B0D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{65198DA2-02DA-0492-561C-A48E35904B0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{65198DA2-02DA-0492-561C-A48E35904B0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{65198DA2-02DA-0492-561C-A48E35904B0D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4A9790AC-79BF-C428-3F11-1E9389F6DEE0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A9790AC-79BF-C428-3F11-1E9389F6DEE0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A9790AC-79BF-C428-3F11-1E9389F6DEE0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A9790AC-79BF-C428-3F11-1E9389F6DEE0}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{65198DA2-02DA-0492-561C-A48E35904B0D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{4A9790AC-79BF-C428-3F11-1E9389F6DEE0} = {0C88DD14-F956-CE84-757C-A364CCF449FC}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E3D9F53E-8274-4D7E-93C6-32AA0A057D01}
+	EndGlobalSection
+EndGlobal
