@@ -1,0 +1,210 @@
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+
+  # Dead-Letter Queue
+  PedidosDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: torne-se-fila-pedido-criado-dlq
+      # Criptografia gerenciada pelo SQS (SSE-SQS)
+      SqsManagedSseEnabled: true
+      # Retenção maior na DLQ para análise
+      MessageRetentionPeriod: 1209600 # 14 dias (em segundos)
+      Tags:
+        - Key: service
+          Value: pedidos
+
+  PedidosQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: torne-se-fila-pedido-criado
+      SqsManagedSseEnabled: true
+      VisibilityTimeout: 300 # segundos (ajuste para >= timeout da Lambda, se houver)
+      MessageRetentionPeriod: 1209600 # 4 dias (em segundos)
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt PedidosDLQ.Arn
+        maxReceiveCount: 5 # após 5 falhas, mensagem vai para a DLQ
+      Tags:
+        - Key: service
+          Value: pedidos
+
+  LambdaExecutionRolePedidos:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: torne-se-pedidos-minimal-api-cloudformation-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: torne-se-pedidos-minimal-api-cloudformation-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                Resource: arn:aws:dynamodb:*:*:*
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: arn:aws:sqs:*:*:*
+
+  LambdaExecutionRoleReservaEstoque:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: torne-se-pedidos-minimal-api-cloudformation-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: torne-se-pedidos-minimal-api-cloudformation-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                Resource: arn:aws:dynamodb:*:*:*
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: arn:aws:sqs:*:*:*
+
+  ApiPedidos:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: torne-se-pedidos-minimal-api
+      Runtime: dotnet8
+      Handler: TorneSe.Pedidos.MinimalApi
+      Role: !GetAtt LambdaExecutionRoleReservaEstoque.Arn
+      Code:
+        S3Bucket: torne-se-apps-cloudformation # 🔹 Substitua pelo bucket onde está o ZIP
+        S3Key: dotnet/TorneSe.Pedidos.MinimalApi.zip
+      MemorySize: 512
+      Timeout: 900
+      Architectures:
+        - arm64
+
+  ApiReserva:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: torne-se-reserva-estoque
+      Runtime: python3.10
+      Handler: handler.handler
+      Role: !GetAtt LambdaExecutionRolePedidos.Arn
+      Code:
+        S3Bucket: torne-se-apps-cloudformation # 🔹 Substitua pelo bucket onde está o ZIP
+        S3Key: python/torne-se-reserva-app.zip
+      MemorySize: 512
+      Timeout: 900
+      Architectures:
+        - arm64
+
+  ApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: torne-se-pedidos-api-gateway
+      Description: API Gateway REST para a Lambda
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  ApiGatewayResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: '{proxy+}'
+
+  # 🔹 Criando o Método ANY para o recurso `{proxy+}`
+  ApiGatewayMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ResourceId: !Ref ApiGatewayResource
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiPedidos.Arn}/invocations
+          - LambdaFunction: !GetAtt ApiPedidos.Arn
+
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: ApiGatewayMethod
+    Properties:
+      RestApiId: !Ref ApiGateway
+      StageName: prod
+
+  # 🔹 Permitir que a API Gateway invoque a Lambda
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ApiPedidos
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*/{proxy+}
+
+  EventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName: !Ref ApiReserva
+      EventSourceArn: !GetAtt PedidosQueue.Arn
+      BatchSize: 10
+      MaximumBatchingWindowInSeconds: 5
+      Enabled: true
+  TabelaPedidos:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
