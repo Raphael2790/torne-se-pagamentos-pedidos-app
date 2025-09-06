@@ -3,7 +3,7 @@
     {
       "messageId": "19dd0b57-b21e-4ac1-bd88-01bbb068cb78",
       "receiptHandle": "MessageReceiptHandle",
-      "body": "{\"id_pedido\": \"123e4567-e89b-12d3-a456-426614174000\", \"status\": \"confirmado\", \"data_pedido\": \"2023-10-01\", \"data_hora_evento\": \"2023-10-01T12:34:56\"}",
+      "body": "{\"idPedido\": \"PED-001\", \"status\": \"pendente\", \"dataPedido\": \"2024-01-15\", \"dataHoraEvento\": \"2024-01-15T10:30:00Z\"}",
       "attributes": {
         "ApproximateReceiveCount": "1",
         "SentTimestamp": "1523232000000",
@@ -16,8 +16,8 @@
       },
       "md5OfBody": "7b270e59b47ff90a553787216d55d91d",
       "eventSource": "aws:sqs",
-      "eventSourceARN": "arn:{partition}:sqs:{region}:123456789012:MyQueue",
-      "awsRegion": "{region}"
+      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:pagamentos-pedidos-queue",
+      "awsRegion": "us-east-1"
     }
   ]
 }

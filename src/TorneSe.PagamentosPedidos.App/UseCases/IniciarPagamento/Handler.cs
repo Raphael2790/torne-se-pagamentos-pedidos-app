@@ -19,14 +19,17 @@ public sealed class Handler(
     {
         try
         {
-            logger.LogInformation("Iniciando processo de pagamento para o pedido: {IdPedido}", request.IdPedido);
+            logger.LogInformation("Processando pagamento - IdPedido: {IdPedido}, DataPedido: {DataPedido}", 
+                request.IdPedido, request.DataPedido.ToString("yyyy-MM-dd"));
 
-            // Buscar dados do pedido no DynamoDB
-            var pedidoDynamo = await dbService.ObterPedidoAsync(request.IdPedido);
+            // Buscar dados do pedido no DynamoDB usando as chaves primárias
+            var dataPedidoFormatada = request.DataPedido.ToString("yyyy-MM-dd");
+            var pedidoDynamo = await dbService.ObterPedidoAsync(dataPedidoFormatada, request.IdPedido);
             
             if (pedidoDynamo == null)
             {
-                logger.LogError("Pedido não encontrado no DynamoDB: {IdPedido}", request.IdPedido);
+                logger.LogError("Pedido não encontrado no DynamoDB: DataPedido={DataPedido}, IdPedido={IdPedido}", 
+                    dataPedidoFormatada, request.IdPedido);
                 return Result<CriarPagamentoResponse>.Error($"Pedido não encontrado: {request.IdPedido}");
             }
 
@@ -66,9 +69,6 @@ public sealed class Handler(
                 DataCriacao = statusPagamento.DataCriacao,
                 UrlPagamento = $"https://checkout.stripe.com/pay/{paymentIntentId}" // URL de exemplo
             };
-
-            logger.LogInformation("Pagamento criado com sucesso para o pedido: {IdPedido}, PaymentIntent: {PaymentIntentId}", 
-                request.IdPedido, paymentIntentId);
 
             return Result<CriarPagamentoResponse>.Success(response);
         }

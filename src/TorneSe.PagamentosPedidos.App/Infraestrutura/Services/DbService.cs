@@ -1,6 +1,5 @@
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DataModel;
-using Amazon.DynamoDBv2.DocumentModel;
 using Microsoft.Extensions.Logging;
 using TorneSe.PagamentosPedidos.App.Abstracoes.Infraestrutura;
 using TorneSe.PagamentosPedidos.App.Infraestrutura.Models;
@@ -34,36 +33,24 @@ public class DbService : IDbService
         }
     }
 
-    public async Task<PedidoDynamoModel> ObterPedidoAsync(string idPedido)
+    public async Task<PedidoDynamoModel> ObterPedidoAsync(string dataPedido, string idPedido)
     {
         try
         {
-            _logger.LogInformation("Consultando pedido no DynamoDB: {IdPedido}", idPedido);
+            // Buscar o pedido no DynamoDB usando Query com as chaves primárias
+            var pedido = await _dynamoDbContext.LoadAsync<PedidoDynamoModel>(dataPedido, idPedido);
 
-            // Buscar o pedido no DynamoDB usando Scan (não ideal para produção, mas funcional)
-            // Em produção, considere usar um GSI ou reorganizar a estrutura da tabela
-            var scanConditions = new List<ScanCondition>
+            if (pedido is null)
             {
-                new ScanCondition("Id", ScanOperator.Equal, idPedido)
-            };
-
-            var pedidos = await _dynamoDbContext.ScanAsync<PedidoDynamoModel>(scanConditions).GetRemainingAsync();
-
-            var pedido = pedidos.FirstOrDefault();
-
-            if (pedido == null)
-            {
-                _logger.LogWarning("Pedido não encontrado: {IdPedido}", idPedido);
+                _logger.LogWarning("Pedido não encontrado: DataPedido={DataPedido}, IdPedido={IdPedido}", dataPedido, idPedido);
                 return null;
             }
-
-            _logger.LogInformation("Pedido encontrado: {IdPedido}, Status: {Status}", idPedido, pedido.Status);
 
             return pedido;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erro ao consultar pedido no DynamoDB: {IdPedido}", idPedido);
+            _logger.LogError(ex, "Erro ao consultar pedido no DynamoDB: DataPedido={DataPedido}, IdPedido={IdPedido}", dataPedido, idPedido);
             throw;
         }
     }

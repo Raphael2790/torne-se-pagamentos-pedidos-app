@@ -30,8 +30,6 @@ public class StripePagamentoService : IPagamentoService
     {
         try
         {
-            _logger.LogInformation("Criando pagamento no Stripe para o pedido: {IdPedido}", pagamentoDto.IdPedido);
-
             var options = new PaymentIntentCreateOptions
             {
                 Amount = (long)(pagamentoDto.Valor * 100), // Stripe trabalha em centavos
@@ -54,8 +52,6 @@ public class StripePagamentoService : IPagamentoService
             var service = new PaymentIntentService();
             var paymentIntent = await service.CreateAsync(options);
 
-            _logger.LogInformation("Pagamento criado com sucesso. PaymentIntent ID: {PaymentIntentId}", paymentIntent.Id);
-
             return Result<string>.Success(paymentIntent.Id);
         }
         catch (StripeException ex)
@@ -74,8 +70,6 @@ public class StripePagamentoService : IPagamentoService
     {
         try
         {
-            _logger.LogInformation("Obtendo status do pagamento: {PaymentIntentId}", paymentIntentId);
-
             var service = new PaymentIntentService();
             var paymentIntent = await service.GetAsync(paymentIntentId);
 
@@ -88,8 +82,6 @@ public class StripePagamentoService : IPagamentoService
                 DataCriacao = DateTime.UtcNow, // Usar data atual como fallback
                 DataConfirmacao = null // Será preenchido quando o pagamento for confirmado via webhook
             };
-
-            _logger.LogInformation("Status do pagamento obtido com sucesso: {Status}", statusDto.Status);
 
             return Result<PagamentoStatusDto>.Success(statusDto);
         }
@@ -109,8 +101,6 @@ public class StripePagamentoService : IPagamentoService
     {
         try
         {
-            _logger.LogInformation("Cancelando pagamento: {PaymentIntentId}", paymentIntentId);
-
             var service = new PaymentIntentService();
             var cancelOptions = new PaymentIntentCancelOptions
             {
@@ -118,8 +108,6 @@ public class StripePagamentoService : IPagamentoService
             };
 
             var paymentIntent = await service.CancelAsync(paymentIntentId, cancelOptions);
-
-            _logger.LogInformation("Pagamento cancelado com sucesso: {PaymentIntentId}", paymentIntentId);
 
             return Result<bool>.Success(true);
         }

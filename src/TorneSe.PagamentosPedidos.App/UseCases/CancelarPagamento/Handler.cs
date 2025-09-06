@@ -14,7 +14,8 @@ public sealed class Handler(ILogger<Handler> logger, IPagamentoService pagamento
     {
         try
         {
-            logger.LogInformation("Cancelando pagamento: {PaymentIntentId}", request.PaymentIntentId);
+            logger.LogInformation("Cancelando pagamento - PaymentIntentId: {PaymentIntentId}, Motivo: {Motivo}", 
+                request.PaymentIntentId, request.MotivoCancelamento);
 
             var resultadoCancelamento = await pagamentoService.CancelarPagamentoAsync(request.PaymentIntentId);
             
@@ -31,8 +32,6 @@ public sealed class Handler(ILogger<Handler> logger, IPagamentoService pagamento
                 DataCancelamento = DateTime.UtcNow,
                 MotivoCancelamento = request.MotivoCancelamento
             };
-
-            logger.LogInformation("Pagamento cancelado com sucesso: {PaymentIntentId}", request.PaymentIntentId);
 
             return Result<CancelarPagamentoResponse>.Success(response);
         }

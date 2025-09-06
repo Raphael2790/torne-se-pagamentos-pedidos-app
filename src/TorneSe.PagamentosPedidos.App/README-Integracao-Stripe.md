@@ -54,22 +54,44 @@ Configure as seguintes variáveis de ambiente:
 - `Stripe__WebhookSecret`: Secret do webhook do Stripe
 - `AWS_REGION`: Região do AWS (ex: us-east-1)
 
-## Uso dos Use Cases
+## Roteamento de Eventos
 
-### 1. Criar Pagamento (Atualizado)
+A Function Lambda processa mensagens SQS baseadas no atributo `evento` presente no corpo da mensagem. Os eventos suportados são:
 
-```csharp
-var request = new CriarPagamentoRequest
+- **`iniciar pagamento`**: Cria um novo pagamento no Stripe
+- **`consultar pagamento`**: Consulta o status de um pagamento
+- **`cancelar pagamento`**: Cancela um pagamento existente
+
+## Exemplos de Mensagens SQS
+
+### 1. Iniciar Pagamento
+
+```json
 {
-    IdPedido = "PED-001"
-};
-
-var resultado = await mediator.Send(request);
+  "Records": [
+    {
+      "messageId": "19dd0b57-b21e-4ac1-bd88-01bbb068cb78",
+      "receiptHandle": "MessageReceiptHandle",
+      "body": "{\"evento\": \"iniciar pagamento\", \"idPedido\": \"PED-001\", \"status\": \"pendente\", \"dataPedido\": \"2024-01-15\", \"dataHoraEvento\": \"2024-01-15T10:30:00Z\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "1",
+        "SentTimestamp": "1523232000000",
+        "SenderId": "123456789012",
+        "ApproximateFirstReceiveTimestamp": "1523232000001"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "7b270e59b47ff90a553787216d55d91d",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:pagamentos-pedidos-queue",
+      "awsRegion": "us-east-1"
+    }
+  ]
+}
 ```
 
 **Fluxo do processo:**
-1. Recebe o `IdPedido` na request
-2. Busca os dados completos do pedido no DynamoDB
+1. Recebe o `IdPedido` na mensagem SQS
+2. Busca os dados completos do pedido no DynamoDB usando `DataPedido` e `IdPedido`
 3. Deserializa o JSON `PedidoCompleto` para obter dados do cliente
 4. Mapeia os dados usando AutoMapper para `CriarPagamentoDto`
 5. Cria o pagamento no Stripe
@@ -77,25 +99,104 @@ var resultado = await mediator.Send(request);
 
 ### 2. Consultar Status do Pagamento
 
-```csharp
-var request = new ConsultarStatusPagamentoRequest
+```json
 {
-    PaymentIntentId = "pi_1234567890"
-};
-
-var resultado = await mediator.Send(request);
+  "Records": [
+    {
+      "messageId": "19dd0b57-b21e-4ac1-bd88-01bbb068cb79",
+      "receiptHandle": "MessageReceiptHandle",
+      "body": "{\"evento\": \"consultar pagamento\", \"paymentIntentId\": \"pi_1234567890abcdef\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "1",
+        "SentTimestamp": "1523232000000",
+        "SenderId": "123456789012",
+        "ApproximateFirstReceiveTimestamp": "1523232000001"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "7b270e59b47ff90a553787216d55d91e",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:pagamentos-pedidos-queue",
+      "awsRegion": "us-east-1"
+    }
+  ]
+}
 ```
 
 ### 3. Cancelar Pagamento
 
-```csharp
-var request = new CancelarPagamentoRequest
+```json
 {
-    PaymentIntentId = "pi_1234567890",
-    MotivoCancelamento = "Solicitação do cliente"
-};
+  "Records": [
+    {
+      "messageId": "19dd0b57-b21e-4ac1-bd88-01bbb068cb80",
+      "receiptHandle": "MessageReceiptHandle",
+      "body": "{\"evento\": \"cancelar pagamento\", \"paymentIntentId\": \"pi_1234567890abcdef\", \"motivoCancelamento\": \"Cliente solicitou cancelamento\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "1",
+        "SentTimestamp": "1523232000000",
+        "SenderId": "123456789012",
+        "ApproximateFirstReceiveTimestamp": "1523232000001"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "7b270e59b47ff90a553787216d55d91f",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:pagamentos-pedidos-queue",
+      "awsRegion": "us-east-1"
+    }
+  ]
+}
+```
 
-var resultado = await mediator.Send(request);
+## Tratamento de Erros
+
+### Evento Não Reconhecido
+
+```json
+{
+  "Records": [
+    {
+      "messageId": "19dd0b57-b21e-4ac1-bd88-01bbb068cb81",
+      "receiptHandle": "MessageReceiptHandle",
+      "body": "{\"evento\": \"evento inexistente\", \"idPedido\": \"PED-001\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "1",
+        "SentTimestamp": "1523232000000",
+        "SenderId": "123456789012",
+        "ApproximateFirstReceiveTimestamp": "1523232000001"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "7b270e59b47ff90a553787216d55d920",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:pagamentos-pedidos-queue",
+      "awsRegion": "us-east-1"
+    }
+  ]
+}
+```
+
+### Mensagem Sem Atributo Evento
+
+```json
+{
+  "Records": [
+    {
+      "messageId": "19dd0b57-b21e-4ac1-bd88-01bbb068cb82",
+      "receiptHandle": "MessageReceiptHandle",
+      "body": "{\"idPedido\": \"PED-001\", \"status\": \"pendente\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "1",
+        "SentTimestamp": "1523232000000",
+        "SenderId": "123456789012",
+        "ApproximateFirstReceiveTimestamp": "1523232000001"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "7b270e59b47ff90a553787216d55d921",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:pagamentos-pedidos-queue",
+      "awsRegion": "us-east-1"
+    }
+  ]
+}
 ```
 
 ## Estrutura do Pedido no DynamoDB
@@ -174,16 +275,33 @@ A implementação inclui tratamento robusto de erros:
 - **Pedido não encontrado**: Retorna erro específico
 - **Logging**: Logs detalhados para debugging
 
-## Logs
+## Logs Otimizados
 
-O sistema gera logs para todas as operações:
+O sistema implementa logs otimizados seguindo boas práticas:
 
-- Consulta de pedidos no DynamoDB
-- Criação de pagamentos
-- Consulta de status
-- Cancelamento de pagamentos
-- Processamento de webhooks
-- Erros e exceções
+### Logs de Entrada (Críticos)
+- **Entrada de requisições**: Log de entrada com dados principais para identificação
+- **Eventos identificados**: Log do tipo de evento processado
+
+### Logs de Erro (Críticos)
+- **Exceções**: Todos os erros são logados com stack trace completo
+- **Falhas de negócio**: Erros específicos do Stripe e DynamoDB
+- **Pedidos não encontrados**: Warnings para pedidos inexistentes
+
+### Logs Removidos (Não Críticos)
+- Logs de sucesso intermediários
+- Logs de progresso de operações
+- Logs de debug desnecessários
+
+### Exemplo de Logs Gerados
+
+```
+[INFO] Processando mensagem SQS - MessageId: 19dd0b57-b21e-4ac1-bd88-01bbb068cb78
+[INFO] Evento identificado: iniciar pagamento
+[INFO] Processando pagamento - IdPedido: PED-001, DataPedido: 2024-01-15
+[ERROR] Pedido não encontrado no DynamoDB: DataPedido=2024-01-15, IdPedido=PED-001
+[ERROR] Falha ao iniciar pagamento - IdPedido: PED-001, Erro: Pedido não encontrado: PED-001
+```
 
 ## Segurança
 

@@ -14,7 +14,7 @@ public sealed class Handler(ILogger<Handler> logger, IPagamentoService pagamento
     {
         try
         {
-            logger.LogInformation("Consultando status do pagamento: {PaymentIntentId}", request.PaymentIntentId);
+            logger.LogInformation("Consultando status - PaymentIntentId: {PaymentIntentId}", request.PaymentIntentId);
 
             var resultadoStatus = await pagamentoService.ObterStatusPagamentoAsync(request.PaymentIntentId);
             
@@ -37,8 +37,6 @@ public sealed class Handler(ILogger<Handler> logger, IPagamentoService pagamento
                 IdPedido = statusPagamento.PaymentIntentId, // Pode ser extraído dos metadados se necessário
                 NomeCliente = string.Empty // Pode ser extraído dos metadados se necessário
             };
-
-            logger.LogInformation("Status do pagamento consultado com sucesso: {Status}", statusPagamento.Status);
 
             return Result<ConsultarStatusPagamentoResponse>.Success(response);
         }
