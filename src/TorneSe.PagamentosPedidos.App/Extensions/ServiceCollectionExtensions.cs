@@ -11,7 +11,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection ConfigureServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IPagamentoService, StripePagamentoService>();
-        services.AddScoped<IDbService, DbService>();
+        services.AddScoped<IPedidoRepository, PedidoRepository>();
+        services.AddScoped<IPagamentoRepository, PagamentoRepository>();
         services.AddScoped<IMessageService, MessageService>();
         services.AddAutoMapper(typeof(AutoMapperProfile));
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Function).Assembly));

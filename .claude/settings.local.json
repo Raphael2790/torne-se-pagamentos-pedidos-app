@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build)",
+      "Bash(chmod:*)",
+      "Bash(./deploy/build-local.sh:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

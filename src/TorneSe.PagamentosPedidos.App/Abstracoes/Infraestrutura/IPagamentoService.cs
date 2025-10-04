@@ -7,6 +7,8 @@ public interface IPagamentoService
     Task<Result<string>> CriarPagamentoAsync(CriarPagamentoDto pagamentoDto);
     Task<Result<PagamentoStatusDto>> ObterStatusPagamentoAsync(string paymentIntentId);
     Task<Result<bool>> CancelarPagamentoAsync(string paymentIntentId);
+    Task<Result<bool>> ConfirmarPagamentoAsync(string paymentIntentId, string paymentMethodId);
+    Task<Result<bool>> CapturarPagamentoAsync(string paymentIntentId);
 }
 
 public class CriarPagamentoDto

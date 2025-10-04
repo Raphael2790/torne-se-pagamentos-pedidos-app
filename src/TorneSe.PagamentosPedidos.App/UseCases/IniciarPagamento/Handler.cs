@@ -3,15 +3,17 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using TorneSe.PagamentosPedidos.App.Abstracoes.Infraestrutura;
 using TorneSe.PagamentosPedidos.App.Common;
+using TorneSe.PagamentosPedidos.App.Infraestrutura.Models;
 using TorneSe.PagamentosPedidos.App.UseCases.IniciarPagamento.Request;
 using TorneSe.PagamentosPedidos.App.UseCases.IniciarPagamento.Response;
 
 namespace TorneSe.PagamentosPedidos.App.UseCases.IniciarPagamento;
 
 public sealed class Handler(
-    ILogger<Handler> logger, 
-    IDbService dbService,
+    ILogger<Handler> logger,
+    IPedidoRepository pedidoRepository,
     IPagamentoService pagamentoService,
+    IPagamentoRepository pagamentoRepository,
     IMapper mapper)
     : IRequestHandler<CriarPagamentoRequest, Result<CriarPagamentoResponse>>
 {
@@ -19,16 +21,16 @@ public sealed class Handler(
     {
         try
         {
-            logger.LogInformation("Processando pagamento - IdPedido: {IdPedido}, DataPedido: {DataPedido}", 
+            logger.LogInformation("Processando pagamento - IdPedido: {IdPedido}, DataPedido: {DataPedido}",
                 request.IdPedido, request.DataPedido.ToString("yyyy-MM-dd"));
 
             // Buscar dados do pedido no DynamoDB usando as chaves primárias
             var dataPedidoFormatada = request.DataPedido.ToString("yyyy-MM-dd");
-            var pedidoDynamo = await dbService.ObterPedidoAsync(dataPedidoFormatada, request.IdPedido);
-            
+            var pedidoDynamo = await pedidoRepository.ObterPedidoAsync(dataPedidoFormatada, request.IdPedido);
+
             if (pedidoDynamo == null)
             {
-                logger.LogError("Pedido não encontrado no DynamoDB: DataPedido={DataPedido}, IdPedido={IdPedido}", 
+                logger.LogError("Pedido não encontrado no DynamoDB: DataPedido={DataPedido}, IdPedido={IdPedido}",
                     dataPedidoFormatada, request.IdPedido);
                 return Result<CriarPagamentoResponse>.Error($"Pedido não encontrado: {request.IdPedido}");
             }
@@ -38,7 +40,7 @@ public sealed class Handler(
 
             // Criar pagamento no Stripe
             var resultadoPagamento = await pagamentoService.CriarPagamentoAsync(pagamentoDto);
-            
+
             if (!resultadoPagamento.IsSuccess)
             {
                 logger.LogError("Falha ao criar pagamento no Stripe: {Erro}", resultadoPagamento.Message);
@@ -49,7 +51,7 @@ public sealed class Handler(
 
             // Obter status do pagamento
             var resultadoStatus = await pagamentoService.ObterStatusPagamentoAsync(paymentIntentId);
-            
+
             if (!resultadoStatus.IsSuccess)
             {
                 logger.LogError("Falha ao obter status do pagamento: {Erro}", resultadoStatus.Message);
@@ -57,6 +59,25 @@ public sealed class Handler(
             }
 
             var statusPagamento = resultadoStatus.Data;
+
+            // Persistir pagamento no DynamoDB
+            var pagamento = new PagamentoDynamoModel
+            {
+                IdPedido = request.IdPedido,
+                PaymentIntentId = paymentIntentId,
+                Status = statusPagamento.Status,
+                Valor = statusPagamento.Valor,
+                Moeda = statusPagamento.Moeda,
+                DataCriacao = statusPagamento.DataCriacao,
+                UrlPagamento = null, // Não usar URL de checkout - integração via API
+                MetadosPagamento = $"{{\"payment_intent_id\":\"{paymentIntentId}\",\"integration_type\":\"api\"}}"
+            };
+
+            var salvouPagamento = await pagamentoRepository.SalvarPagamentoAsync(pagamento);
+            if (!salvouPagamento)
+            {
+                logger.LogWarning("Falha ao salvar pagamento no DynamoDB, mas o pagamento foi criado no Stripe: {PaymentIntentId}", paymentIntentId);
+            }
 
             // Criar resposta
             var response = new CriarPagamentoResponse
@@ -67,7 +88,7 @@ public sealed class Handler(
                 Valor = statusPagamento.Valor,
                 Moeda = statusPagamento.Moeda,
                 DataCriacao = statusPagamento.DataCriacao,
-                UrlPagamento = $"https://checkout.stripe.com/pay/{paymentIntentId}" // URL de exemplo
+                UrlPagamento = null // Integração via API - cliente deve usar PaymentIntentId para processar
             };
 
             return Result<CriarPagamentoResponse>.Success(response);

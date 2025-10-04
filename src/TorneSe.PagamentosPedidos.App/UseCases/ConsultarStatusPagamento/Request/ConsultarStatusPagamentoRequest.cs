@@ -6,5 +6,6 @@ namespace TorneSe.PagamentosPedidos.App.UseCases.ConsultarStatusPagamento.Reques
 
 public class ConsultarStatusPagamentoRequest : IRequest<Result<ConsultarStatusPagamentoResponse>>
 {
+    public string PaymentIntentId { get; set; }
     public string PagamentoStatus { get; set; } = "Pendente";
 }
