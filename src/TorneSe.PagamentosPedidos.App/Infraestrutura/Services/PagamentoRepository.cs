@@ -74,4 +74,35 @@ public class PagamentoRepository(IAmazonDynamoDB dynamoDbClient, ILogger<Pagamen
             throw;
         }
     }
+
+    public async Task<bool> AtualizarStatusPagamentoAsync(string idPedido, string paymentIntentId, string novoStatus)
+    {
+        try
+        {
+            var pagamento = await ObterPagamentoAsync(idPedido, paymentIntentId);
+
+            if (pagamento == null)
+            {
+                _logger.LogWarning("Pagamento não encontrado para atualização: IdPedido={IdPedido}, PaymentIntentId={PaymentIntentId}",
+                    idPedido, paymentIntentId);
+                return false;
+            }
+
+            pagamento.Status = novoStatus;
+            pagamento.DataAtualizacao = DateTime.UtcNow;
+
+            await _dynamoDbContext.SaveAsync(pagamento);
+
+            _logger.LogInformation("Status do pagamento atualizado com sucesso: IdPedido={IdPedido}, PaymentIntentId={PaymentIntentId}, NovoStatus={NovoStatus}",
+                idPedido, paymentIntentId, novoStatus);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao atualizar status do pagamento no DynamoDB: IdPedido={IdPedido}, PaymentIntentId={PaymentIntentId}",
+                idPedido, paymentIntentId);
+            return false;
+        }
+    }
 }

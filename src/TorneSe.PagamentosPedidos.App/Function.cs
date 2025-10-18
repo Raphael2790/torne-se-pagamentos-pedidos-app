@@ -33,10 +33,10 @@ public class Function
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .Build();
-        
+
         services.ConfigureServices(configuration);
         var serviceProvider = services.BuildServiceProvider();
-        
+
         _mediator = serviceProvider.GetRequiredService<IMediator>();
         _logger = serviceProvider.GetRequiredService<ILogger<Function>>();
     }
@@ -64,13 +64,13 @@ public class Function
 
             // Deserializar o corpo da mensagem
             var messageBody = JsonSerializer.Deserialize<Dictionary<string, object>>(message.Body);
-            
+
             if (message.MessageAttributes.TryGetValue("evento", out var evento))
             {
                 _logger.LogError("Mensagem inválida: atributo 'evento' não encontrado");
                 return;
             }
-            
+
             _logger.LogInformation("Evento identificado: {Evento}", evento);
 
             // Roteamento baseado no evento
@@ -79,15 +79,15 @@ public class Function
                 case "iniciar_pagamento":
                     await ProcessarIniciarPagamento(messageBody, context);
                     break;
-                    
+
                 case "consultar_pagamento":
                     await ProcessarConsultarPagamento(messageBody, context);
                     break;
-                    
+
                 case "cancelar_pagamento":
                     await ProcessarCancelarPagamento(messageBody, context);
                     break;
-                    
+
                 default:
                     _logger.LogWarning("Evento não reconhecido: {Evento}", evento);
                     break;
@@ -107,22 +107,22 @@ public class Function
             {
                 IdPedido = messageBody.GetValueOrDefault("idPedido")?.ToString(),
                 Status = messageBody.GetValueOrDefault("status")?.ToString(),
-                DataPedido = DateTime.TryParse(messageBody.GetValueOrDefault("dataPedido")?.ToString(), out var dataPedido) 
+                DataPedido = DateTime.TryParse(messageBody.GetValueOrDefault("dataPedido")?.ToString(), out var dataPedido)
                     ? dataPedido : DateTime.UtcNow,
-                DataHoraEvento = DateTime.TryParse(messageBody.GetValueOrDefault("dataHoraEvento")?.ToString(), out var dataHoraEvento) 
+                DataHoraEvento = DateTime.TryParse(messageBody.GetValueOrDefault("dataHoraEvento")?.ToString(), out var dataHoraEvento)
                     ? dataHoraEvento : DateTime.UtcNow
             };
 
             var resultado = await _mediator.Send(request);
-            
+
             if (resultado.IsSuccess)
             {
-                _logger.LogInformation("Pagamento iniciado com sucesso - IdPedido: {IdPedido}, PaymentIntentId: {PaymentIntentId}", 
+                _logger.LogInformation("Pagamento iniciado com sucesso - IdPedido: {IdPedido}, PaymentIntentId: {PaymentIntentId}",
                     request.IdPedido, resultado.Data.PaymentIntentId);
                 return;
             }
 
-            _logger.LogError("Falha ao iniciar pagamento - IdPedido: {IdPedido}, Erro: {Erro}", 
+            _logger.LogError("Falha ao iniciar pagamento - IdPedido: {IdPedido}, Erro: {Erro}",
                 request.IdPedido, resultado.Message);
         }
         catch (Exception ex)
@@ -138,16 +138,16 @@ public class Function
             var request = new ConsultarStatusPagamentoRequest();
 
             var resultado = await _mediator.Send(request);
-            
+
             if (resultado.IsSuccess)
             {
-                _logger.LogInformation("Status consultado com sucesso - PagamentoStatus: {PagamentoStatus}, Status: {Status}", 
+                _logger.LogInformation("Status consultado com sucesso - PagamentoStatus: {PagamentoStatus}, Status: {Status}",
                     request.PagamentoStatus, resultado.Data.Status);
                 return;
             }
-            
-            _logger.LogError("Falha ao consultar status - PagamentoStatus: {PagamentoStatus}, Erro: {Erro}", 
-                request.PagamentoStatus, resultado.Message);    
+
+            _logger.LogError("Falha ao consultar status - PagamentoStatus: {PagamentoStatus}, Erro: {Erro}",
+                request.PagamentoStatus, resultado.Message);
         }
         catch (Exception ex)
         {
@@ -161,21 +161,26 @@ public class Function
         {
             var request = new CancelarPagamentoRequest
             {
+                IdPedido = messageBody.GetValueOrDefault("idPedido")?.ToString(),
                 PaymentIntentId = messageBody.GetValueOrDefault("paymentIntentId")?.ToString(),
-                MotivoCancelamento = messageBody.GetValueOrDefault("motivoCancelamento")?.ToString() ?? "Solicitação do cliente"
+                MotivoCancelamento = messageBody.GetValueOrDefault("motivoCancelamento")?.ToString() ?? "Solicitação do cliente",
+                Valor = decimal.TryParse(messageBody.GetValueOrDefault("valor")?.ToString(), out var valor) ? valor : 0,
+                Moeda = messageBody.GetValueOrDefault("moeda")?.ToString() ?? "brl",
+                DataPedido = DateTime.TryParse(messageBody.GetValueOrDefault("dataPedido")?.ToString(), out var dataPedido)
+                    ? dataPedido : DateTime.UtcNow
             };
 
             var resultado = await _mediator.Send(request);
-            
+
             if (resultado.IsSuccess)
             {
-                _logger.LogInformation("Pagamento cancelado com sucesso - PaymentIntentId: {PaymentIntentId}", 
-                    request.PaymentIntentId);
+                _logger.LogInformation("Pagamento cancelado com sucesso - IdPedido: {IdPedido}, PaymentIntentId: {PaymentIntentId}",
+                    request.IdPedido, request.PaymentIntentId);
                 return;
             }
 
-            _logger.LogError("Falha ao cancelar pagamento - PaymentIntentId: {PaymentIntentId}, Erro: {Erro}", 
-                request.PaymentIntentId, resultado.Message);
+            _logger.LogError("Falha ao cancelar pagamento - IdPedido: {IdPedido}, PaymentIntentId: {PaymentIntentId}, Erro: {Erro}",
+                request.IdPedido, request.PaymentIntentId, resultado.Message);
         }
         catch (Exception ex)
         {

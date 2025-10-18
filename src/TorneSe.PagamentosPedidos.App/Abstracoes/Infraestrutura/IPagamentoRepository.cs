@@ -7,4 +7,5 @@ public interface IPagamentoRepository
     Task<bool> SalvarPagamentoAsync(PagamentoDynamoModel pagamento);
     Task<PagamentoDynamoModel> ObterPagamentoAsync(string idPedido, string paymentIntentId);
     Task<IEnumerable<PagamentoDynamoModel>> ObterPagamentosPorPedidoAsync(string idPedido);
+    Task<bool> AtualizarStatusPagamentoAsync(string idPedido, string paymentIntentId, string novoStatus);
 }
