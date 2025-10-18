@@ -7,7 +7,7 @@ Esta é uma **AWS Lambda Function** serverless em **.NET 8** que processa pagame
 ### Componentes Principais
 
 - **Function.cs**: Entry point da Lambda. Processa mensagens SQS, extrai o atributo `evento` do `MessageAttributes`, e roteia para handlers MediatR
-- **Use Cases**: Organizados em `IniciarPagamento`, `ConsultarStatusPagamento`, `CancelarPagamento`, e `ProcessarCancelamentoPagamento` - cada um com `Handler.cs`, `Request/`, e `Response/`
+- **Use Cases**: Organizados em `IniciarPagamento`, `ConsultarStatusPagamento`, `CancelarPagamento`, e `ConfirmarPagamento` - cada um com `Handler.cs`, `Request/`, e `Response/`
 - **Repository Pattern**: `IPedidoRepository` e `IPagamentoRepository` abstraem acesso ao DynamoDB
 - **Service Layer**: `StripePagamentoService` gerencia integração com gateway de pagamento Stripe
 - **Message Service**: `IMessageService` gerencia envio de mensagens para filas SQS
@@ -19,8 +19,8 @@ Esta é uma **AWS Lambda Function** serverless em **.NET 8** que processa pagame
 3. **DynamoDB**: `PedidoRepository` busca dados do pedido usando chaves compostas (`DataPedido` + `Id`)
 4. **Stripe API**: `StripePagamentoService` cria/consulta/cancela PaymentIntents
 5. **Persistência**: Resultados salvos em tabela `Pagamentos` do DynamoDB
-6. **Detecção de Cancelamento**: Ao consultar status, se detectado `canceled` ou `expired`, dispara `ProcessarCancelamentoPagamento` via MediatR
-7. **Notificação**: Atualiza status no DynamoDB e envia mensagem para fila `torne-se-fila-pagamento-cancelado`
+6. **Detecção Automática**: Ao consultar status, se detectado `canceled`, `expired`, ou `succeeded`, dispara casos de uso correspondentes via MediatR
+7. **Notificação**: Atualiza status no DynamoDB e envia mensagens para filas SQS configuradas
 
 ## DynamoDB - Modelagem de Dados
 
@@ -90,6 +90,16 @@ Quando `ConsultarStatusPagamento` detecta status `canceled` ou `expired` do Stri
 3. `CancelarPagamento` atualiza status para "Cancelado" na tabela DynamoDB `Pagamentos`
 4. Cria `PagamentoCanceladoMessage` com informações do pedido
 5. Envia mensagem para fila SQS configurada em `AWS:FilaPagamentoCanceladoUrl`
+6. Logs detalhados em todas as etapas para rastreamento
+
+### Fluxo de Confirmação Automática
+
+Quando `ConsultarStatusPagamento` detecta status `succeeded` do Stripe:
+1. Busca informações do pagamento no DynamoDB para obter IdPedido
+2. Dispara `ConfirmarPagamento` via MediatR (reutilização do caso de uso)
+3. `ConfirmarPagamento` atualiza status para "Pago" na tabela DynamoDB `Pagamentos`
+4. Cria `PagamentoConfirmadoMessage` com informações do pedido
+5. Envia mensagem para fila SQS configurada em `AWS:FilaPagamentoConfirmadoUrl`
 6. Logs detalhados em todas as etapas para rastreamento
 
 ## Integração Stripe
